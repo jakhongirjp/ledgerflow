@@ -169,6 +169,17 @@ a `postgres:16` service container.
 - gRPC transport generated from the same service layer
 - OpenTelemetry tracing across ledgerd, relay and consumers
 
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Product](docs/product.md) | Vision, business problem, business and technical requirements, workflows |
+| [Engineering](docs/engineering.md) | Boundaries, security, performance, observability, DR, DevOps, testing |
+| [Roadmap](docs/roadmap.md) | Ten milestones and the release plan |
+| [CTO review checklist](docs/cto-review-checklist.md) | Honest status against production-readiness criteria |
+| [ADRs](docs/adr) | Architecture decisions |
+| [Contributing](CONTRIBUTING.md) | Branching, commits, labels, board, releases |
+
 ## License
 
 MIT
