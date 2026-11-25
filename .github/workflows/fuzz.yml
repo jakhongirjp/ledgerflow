@@ -1,0 +1,20 @@
+name: Nightly fuzz
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-validate-transaction:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Fuzz transaction validation
+        run: go test ./internal/domain -run '^$' -fuzz '^FuzzValidateTransaction$' -fuzztime=60s

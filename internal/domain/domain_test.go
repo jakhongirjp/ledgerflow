@@ -1,8 +1,10 @@
 package domain
 
 import (
+	"encoding/binary"
 	"errors"
 	"math"
+	"math/big"
 	"testing"
 	"time"
 
@@ -77,6 +79,68 @@ func TestTransactionValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzValidateTransaction(f *testing.F) {
+	f.Add([]byte{
+		0, 1, 100, 0, 0, 0, 0, 0, 0, 0,
+		1, 2, 100, 0, 0, 0, 0, 0, 0, 0,
+	})
+	f.Add([]byte{
+		0, 1, 100, 0, 0, 0, 0, 0, 0, 0,
+		1, 2, 99, 0, 0, 0, 0, 0, 0, 0,
+	})
+	f.Add([]byte{
+		0, 1, 255, 255, 255, 255, 255, 255, 255, 127,
+		0, 2, 1, 0, 0, 0, 0, 0, 0, 0,
+		1, 3, 1, 0, 0, 0, 0, 0, 0, 0,
+	})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		const entrySize = 10
+		entryCount := min(len(data)/entrySize, MaxEntries+1)
+		tx := Transaction{
+			IdempotencyKey: "fuzz",
+			Entries:        make([]Entry, 0, entryCount),
+		}
+
+		for i := 0; i < entryCount; i++ {
+			block := data[i*entrySize : (i+1)*entrySize]
+			direction := Direction("invalid")
+			switch block[0] {
+			case 0:
+				direction = Debit
+			case 1:
+				direction = Credit
+			}
+			tx.Entries = append(tx.Entries, Entry{
+				AccountID: uuid.UUID{block[1]},
+				Direction: direction,
+				Amount:    int64(binary.LittleEndian.Uint64(block[2:])),
+			})
+		}
+
+		if err := tx.Validate(); err != nil {
+			return
+		}
+
+		var debits, credits, amount big.Int
+		for _, entry := range tx.Entries {
+			amount.SetInt64(entry.Amount)
+			switch entry.Direction {
+			case Debit:
+				debits.Add(&debits, &amount)
+			case Credit:
+				credits.Add(&credits, &amount)
+			default:
+				t.Fatalf("validate accepted invalid direction %q", entry.Direction)
+			}
+		}
+		if debits.Cmp(&credits) != 0 {
+			t.Fatalf("validate accepted unbalanced transaction: debits=%s credits=%s entries=%+v",
+				&debits, &credits, tx.Entries)
+		}
+	})
 }
 
 func TestApplyTransactionMovesMoney(t *testing.T) {
